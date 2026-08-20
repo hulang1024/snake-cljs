@@ -1,0 +1,5 @@
+{:deps {org.clojure/clojurescript {:mvn/version "1.12.145"}
+        metosin/malli            {:mvn/version "0.20.1"}}
+ :aliases
+ {:dev   {:main-opts ["-m" "cljs.main" "-w" "src" "-c" "snake.main" "-r"]}
+  :build {:main-opts ["-m" "cljs.main" "--optimizations" "advanced" "-c" "snake.main"]}}}
