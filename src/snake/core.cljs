@@ -25,8 +25,8 @@
                                  :down  [0  1]
                                  :left  [-1 0]})
 
-(defn point=? [p x y]
-  (and (= x (p 0)) (= y (p 1))))
+(defn point=? [p1 p2]
+  (and (= (p1 0) (p2 0)) (= (p1 1) (p2 1))))
 
 (defn- rand-point [map-width map-height pred]
   (let [x (rand-int map-width)
@@ -38,7 +38,6 @@
 ; snake
 (defn make-snake [length map-width map-height]
   (let [dir ([:up :right :down :left] (rand-int 4))
-        dir-vec (direction-vector (opposite-direction dir))
         enough-space? (fn [x y]
                         (case dir
                           :up    (< y (- map-height length))
@@ -46,21 +45,27 @@
                           :down  (> y length)
                           :left  (< x (- map-width length))))
         head (rand-point map-width map-height enough-space?)
+        opp-dir-vec (direction-vector (opposite-direction dir))
         nodes (vec (for [i (range length)]
-                     [(+ (head 0) (* (dir-vec 0) i))
-                      (+ (head 1) (* (dir-vec 1) i))]))]
+                     [(+ (head 0) (* (opp-dir-vec 0) i))
+                      (+ (head 1) (* (opp-dir-vec 1) i))]))]
     {:dir dir :nodes nodes}))
 
 (defn move-snake [snake]
   (let [dir (:dir snake)
         dir-vec (direction-vector dir)
-        old-nodes (:nodes snake)
-        length (count old-nodes)
-        old-head (first old-nodes)
+        nodes (:nodes snake)
+        length (count nodes)
+        old-head (first nodes)
         new-head [(+ (old-head 0) (dir-vec 0))
                   (+ (old-head 1) (dir-vec 1))]
-        new-body (subvec old-nodes 0 (- length 1))]
+        new-body (subvec nodes 0 (- length 1))]
     (assoc snake :nodes (vec (concat [new-head] new-body)))))
+
+(defn grow-snake [snake]
+  (let [nodes (:nodes snake)
+        tail (last nodes)]
+    (assoc snake :nodes (conj nodes tail))))
 
 (defn set-direction [snake dir]
   (if (= (opposite-direction dir) (:dir snake))
@@ -69,4 +74,4 @@
 
 ; food
 (defn rand-food [map-width map-height snake]
-    (rand-point map-width map-height (fn [x y _ _](not-any? #(point=? % x y) (:nodes snake)))))
+  (rand-point map-width map-height (fn [x y] (not-any? #(point=? % [x y]) (:nodes snake)))))

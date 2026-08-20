@@ -1,10 +1,10 @@
-(ns snake.main 
-  (:require
-    [snake.core :refer [make-snake rand-food move-snake set-direction]]
-    [snake.draw :refer [draw init-canvas]]))
+(ns snake.main
+  (:require [snake.core :refer [make-snake move-snake grow-snake rand-food set-direction point=?]]
+            [snake.draw :refer [draw init-canvas]]
+            [snake.input :refer [init-input]]))
 
-(def map-width 20)
-(def map-height 20)
+(def map-width 30)
+(def map-height 30)
 
 (def interval (atom 0))
 (def last-time (atom 0))
@@ -18,41 +18,32 @@
     (loopf 0)))
 
 (def game-state
-  (atom {:snake (make-snake 10 map-width map-height)
+  (atom {:snake (make-snake 3 map-width map-height)
          :food nil
-         :speed 200
+         :speed 50
          :pause true}))
 
 (defn game-update [delta]
   (when (not (:pause @game-state))
+    (when (not (:food @game-state))
+      (swap! game-state
+             (fn [state]
+               (assoc state :food (rand-food map-width map-height (:snake state))))))
     (if (>= @interval (:speed @game-state))
       (do (swap! game-state update :snake move-snake)
           (reset! interval 0))
       (swap! interval + delta))
-    (when (not (:food @game-state))
-      (swap! game-state update :food rand-food map-width map-height (:snake @game-state))))
+    (when (point=? (:food @game-state)
+                   (first (:nodes (:snake @game-state))))
+      (swap! game-state assoc :food nil)
+      (swap! game-state update :snake grow-snake)))
   (draw @game-state))
 
 (defn handle-action [action]
-  (cond 
+  (cond
     (= action :ok) (swap! game-state update :pause not)
     :else (swap! game-state update :snake set-direction action)))
 
-(defn init-action-handlers [handler]
-  (set! (.-onkeydown js/window)
-        (fn [event]
-          (let [action
-                (case event.code
-                  "Space" :ok
-                  "Enter" :ok
-                  "ArrowUp" :up
-                  "ArrowRight" :right
-                  "ArrowDown" :down
-                  "ArrowLeft" :left
-                  nil)]
-            (when action
-              (handler action))))))
-
 (init-canvas map-width map-height)
-(init-action-handlers handle-action)
+(init-input handle-action)
 (start-loop game-update)

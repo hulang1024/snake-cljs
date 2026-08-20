@@ -2,8 +2,8 @@
 
 (def ^:private canvas nil)
 (def ^:private ctx nil)
-(def ^:private obj-width 15)
-(def ^:private obj-height 15)
+(def ^:private obj-width 12)
+(def ^:private obj-height 12)
 (def ^:private obj-colors
   {:snake-head "#ff0000"
    :snake-body "#00ff00"
