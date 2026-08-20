@@ -4,6 +4,10 @@
 (def ^:private ctx nil)
 (def ^:private obj-width 15)
 (def ^:private obj-height 15)
+(def ^:private obj-colors
+  {:snake-head "#ff0000"
+   :snake-body "#00ff00"
+   :food "#ffff00"})
 
 (defn init-canvas [map-width map-height]
   (let [width (* obj-width map-width)
@@ -17,12 +21,8 @@
     (.appendChild js/document.body canvas)))
 
 (defn- draw-obj [ctx point type]
-  (let [color (case type
-                :snake-head "#ff0000"
-                :snake-body "#00ff00"
-                :food "#ffff00")]
-    (set! (.-fillStyle ctx) color)
-    (.fillRect ctx (* obj-width (point 0)) (* obj-height (point 1)) obj-width obj-height)))
+  (set! (.-fillStyle ctx) (obj-colors type))
+  (.fillRect ctx (* obj-width (point 0)) (* obj-height (point 1)) obj-width obj-height))
 
 (defn draw [game]
   (.clearRect ctx 0 0 (.-width canvas) (.-height canvas))

@@ -2,18 +2,18 @@
   (:require [malli.core :as m]))
 
 ; common
-(def Direction [:enum :up :right :down :left])
-(def Point [:int :int])
-(def Snake [:map {:close true}
-            [:dir Direction]
-            [:nodes [#'Point]]])
-
-; game
-(def Game [:map {:close true}
-           [:snake #'Snake]
-           [:food #'Point]
-           [:speed :int]
-           [:pause :boolean]])
+; (def Direction [:enum :up :right :down :left])
+; (def Point [:int :int])
+; (def Snake [:map {:close true}
+;             [:dir Direction]
+;             [:nodes [#'Point]]])
+;
+; ; game
+; (def Game [:map {:close true}
+;            [:snake #'Snake]
+;            [:food #'Point]
+;            [:speed :int]
+;            [:pause :boolean]])
 
 (def ^:private opposite-direction {:up    :down
                                    :right :left

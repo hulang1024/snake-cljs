@@ -3,11 +3,11 @@
     [snake.core :refer [make-snake rand-food move-snake set-direction]]
     [snake.draw :refer [draw init-canvas]]))
 
-(def map-width 50)
-(def map-height 50)
+(def map-width 20)
+(def map-height 20)
 
-(def last-time (atom 0))
 (def interval (atom 0))
+(def last-time (atom 0))
 
 (defn start-loop [update-fn]
   (letfn [(loopf [time]
@@ -18,12 +18,12 @@
     (loopf 0)))
 
 (def game-state
-  (atom {:snake (make-snake 5 map-width map-height)
+  (atom {:snake (make-snake 10 map-width map-height)
          :food nil
          :speed 200
          :pause true}))
 
-(defn frame-update [delta]
+(defn game-update [delta]
   (when (not (:pause @game-state))
     (if (>= @interval (:speed @game-state))
       (do (swap! game-state update :snake move-snake)
@@ -55,4 +55,4 @@
 
 (init-canvas map-width map-height)
 (init-action-handlers handle-action)
-(start-loop frame-update)
+(start-loop game-update)
