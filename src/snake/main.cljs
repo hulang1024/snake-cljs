@@ -1,6 +1,6 @@
 (ns snake.main)
 
-; --- core
+; --- setting
 (def map-width 30)
 (def map-height 30)
 (def obj-width 12)
@@ -8,8 +8,16 @@
 (def obj-colors
   {:snake-head "#ff0000"
    :snake-body "#00ff00"
-   :food "#ffff00"})
+   :food       "#ffff00"})
+(def keyboard-bindings
+  {"Enter"      :ok
+   "r"          :restart
+   "ArrowUp"    :up
+   "ArrowRight" :right
+   "ArrowDown"  :down
+   "ArrowLeft"  :left})
 
+; --- core
 (def opposite-direction {:up    :down
                          :right :left
                          :down  :up
@@ -32,10 +40,10 @@
   (let [dir ([:up :right :down :left] (rand-int 4))
         enough-space? (fn [x y]
                         (case dir
-                          :up    (< y (- map-height length))
-                          :right (> x length)
-                          :down  (> y length)
-                          :left  (< x (- map-width length))))
+                          :up    (< 0 y (- map-height length))
+                          :right (< length x (dec map-width))
+                          :down  (< length y (dec map-height))
+                          :left  (< 0 x (- map-width length))))
         head (rand-point map-width map-height enough-space?)
         opp-dir-vec (direction-vector (opposite-direction dir))
         nodes (vec (for [i (range length)]
@@ -44,20 +52,15 @@
     {:dir dir :nodes nodes}))
 
 (defn move-snake [snake]
-  (let [dir (:dir snake)
+  (let [{:keys [dir nodes]} snake
         dir-vec (direction-vector dir)
-        nodes (:nodes snake)
-        length (count nodes)
         old-head (first nodes)
-        new-head [(+ (old-head 0) (dir-vec 0))
-                  (+ (old-head 1) (dir-vec 1))]
-        new-body (subvec nodes 0 (- length 1))]
-    (assoc snake :nodes (vec (concat [new-head] new-body)))))
+        new-head (mapv + old-head dir-vec)
+        new-body (pop nodes)]
+    (assoc snake :nodes (into [new-head] new-body))))
 
 (defn grow-snake [snake]
-  (let [nodes (:nodes snake)
-        tail (last nodes)]
-    (assoc snake :nodes (conj nodes tail))))
+  (update snake :nodes #(conj % (peek %))))
 
 (defn set-direction [snake dir]
   (if (= (opposite-direction dir) (:dir snake))
@@ -67,6 +70,21 @@
 ; food
 (defn rand-food [map-width map-height snake]
   (rand-point map-width map-height (fn [x y] (not-any? #(= % [x y]) (:nodes snake)))))
+
+(defn collide [game map-width map-height]
+  (let [snake (:snake game)
+        nodes (:nodes snake)
+        head (first nodes)
+        [x y] head
+        dir (:dir snake)]
+    (cond
+      (= head (:food game)) :food
+      (some #{head} (rest nodes)) :self
+      (case dir
+        :up    (< y 0)
+        :right (> x (dec map-width))
+        :down  (> y (dec map-height))
+        :left  (< x 0)) :wall)))
 
 ; --- draw
 (def canvas nil)
@@ -98,25 +116,12 @@
       (draw-obj ctx food :food))))
 
 ; --- input
-(defn keybaord-key->action [key]
-  (case key
-    "Space" :ok
-    "Enter" :ok
-    "ArrowUp" :up
-    "ArrowRight" :right
-    "ArrowDown" :down
-    "ArrowLeft" :left
-    nil))
-
 (defn set-keyboard-handler [handler]
   (set! (.-onkeydown js/window)
         (fn [event]
-          (let [action (keybaord-key->action (.-code event))]
+          (let [action (keyboard-bindings (.-key event))]
             (when action
               (handler action))))))
-
-(defn init-input [handler]
-  (set-keyboard-handler handler))
 
 ; --- game
 (def interval (atom 0))
@@ -130,33 +135,44 @@
               (js/requestAnimationFrame loopf)))]
     (loopf 0)))
 
-(def game-state
-  (atom {:snake (make-snake 3 map-width map-height)
-         :food nil
-         :speed 50
-         :pause true}))
+(defn initial-game-state []
+  (let [snake (make-snake 3 map-width map-height)]
+    {:snake snake
+     :food (rand-food map-width map-height snake)
+     :speed 50
+     :pause true}))
+(def game-state (atom (initial-game-state)))
+
+(defn over-game []
+  (reset! game-state (initial-game-state)))
 
 (defn game-update [delta]
   (when (not (:pause @game-state))
-    (when (not (:food @game-state))
-      (swap! game-state
-             (fn [state]
-               (assoc state :food (rand-food map-width map-height (:snake state))))))
     (if (>= @interval (:speed @game-state))
       (do (swap! game-state update :snake move-snake)
           (reset! interval 0))
       (swap! interval + delta))
-    (when (= (:food @game-state)
-             (first (:nodes (:snake @game-state))))
-      (swap! game-state assoc :food nil)
-      (swap! game-state update :snake grow-snake)))
+    (let [collision (collide @game-state map-width map-height)]
+      (case collision
+        :food (do
+                (swap! game-state
+                       (fn [state]
+                         (assoc state :food (rand-food map-width map-height (:snake state)))))
+                (swap! game-state update :snake grow-snake))
+        :self (over-game)
+        :wall (over-game)
+        nil)))
   (draw @game-state))
 
 (defn handle-action [action]
-  (cond
-    (= action :ok) (swap! game-state update :pause not)
-    :else (swap! game-state update :snake set-direction action)))
+  (case action
+    :ok (swap! game-state update :pause not)
+    :restart (over-game)
+    (when (some #{action} [:up :right :down :left])
+      (when (:pause @game-state)
+        (swap! game-state update :pause not))
+      (swap! game-state update :snake set-direction action))))
 
 (init-canvas map-width map-height)
-(init-input handle-action)
+(set-keyboard-handler handle-action)
 (start-loop game-update)
