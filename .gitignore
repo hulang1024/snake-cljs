@@ -1,0 +1,14 @@
+.clj-kondo/*
+!.clj-kondo/config.edn
+.cpcache/
+.lsp/
+node_modules/
+.shadow-cljs
+public/
+.nrepl-port
+.rebel_readline_history
+out/
+dist/
+manifest.edn
+cljs-runtime
+build-report.html
