@@ -2,73 +2,30 @@
   (:require
     [snake.draw :as draw]
     [snake.game :as game]
-    [snake.input :as input]))
-
-(def history-length (* game/map-width game/map-height))
+    [snake.input :as input]
+    [snake.time-travel :as tr]))
 
 (def app (atom {:last-time 0
                 :accumulator 0
                 :update-time 0
                 :game (game/make)
-                :last-game nil
-                :history []
-                :history-index 0 
-                :state :ready}))
-
-(defn- append-history [app]
-  (let [history (conj (:history app) (:game app))
-        history (if (> (count history) history-length)
-                  (subvec history 1)
-                  history)]
-    (assoc app
-           :history history
-           :history-index (dec (count history)))))
-
-(defn- changed? [game0 game1]
-  (not= (select-keys game0 [:snake :food])
-        (select-keys game1 [:snake :food])))
-
-(defn time-backward [app]
-  (let [i (dec (:history-index app))]
-    (if (>= i 0)
-      (assoc app
-             :game (nth (:history app) i)
-             :history-index i)
-      app)))
-
-(defn time-forward [app]
-  (let [i (inc (:history-index app))
-        n (count (:history app))]
-    (if (< i n)
-      (assoc app
-             :game (nth (:history app) i)
-             :history-index i)
-      app)))
+                :state :ready
+                :tm (tr/make-machine)}))
 
 (defn tick [delta-time _elapsed-ms]
   (when (= (:state @app) :playing)
     (swap! app
            (fn [app]
-             (let [game0 (:game app)
-                   game (-> game0 (assoc :events []) (game/tick))
-                   app (cond-> (assoc app :game game)
-                         (changed? game0 game) (append-history))]
+             (let [game (-> (:game app) (assoc :events []) (game/tick))
+                   app (-> (assoc app :game game)
+                           (update :tm tr/join game))]
                (if (some #(= % :game-over) (:events game))
-                 (assoc app
-                        :state :game-over
-                        :last-game (:game app))
+                 (assoc app :state :game-over)
                  app)))))
   (draw/draw delta-time @app))
 
-(defn fork [app]
-  (if (seq (:history app))
-    (assoc app
-           :game (nth (:history app) (:history-index app))
-           :history (subvec (:history app) 0 (inc (:history-index app))))
-    app))
-
 (defn resume-game [app input]
-  (let [app (fork app)
+  (let [app (merge app (tr/fork (:tm app)))
         app (if (contains? #{:up :right :down :left} input)
               (update app :game game/handle-action input)
               app)]
@@ -83,20 +40,20 @@
                :ready (resume-game app action)
                :playing (case action
                           :ok (assoc app :state :paused)
-                          :time-backward (-> (assoc app :state :paused)
-                                             (time-backward))
-                          :time-forward (-> (assoc app :state :paused)
-                                            (time-forward))
+                          :time-backward (merge (assoc app :state :paused)
+                                                (tr/backward (:tm app)))
+                          :time-forward (merge (assoc app :state :paused)
+                                               (tr/forward (:tm app)))
                           (update app :game #(game/handle-action % action)))
                :paused (case action 
                          :ok (resume-game app action)
-                         :time-backward (time-backward app)
-                         :time-forward (time-forward app)
+                         :time-backward (merge app (tr/backward (:tm app)))
+                         :time-forward (merge app (tr/forward (:tm app)))
                          (resume-game app action))
                :game-over (case action
                             :ok (resume-game app action)
-                            :time-backward (time-backward app)
-                            :time-forward (time-forward app)
+                            :time-backward (merge app (tr/backward (:tm app)))
+                            :time-forward (merge app (tr/forward (:tm app)))
                             (resume-game app action))
                app)))))
 
