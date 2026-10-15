@@ -1,4 +1,6 @@
-(ns snake.game)
+(ns snake.game 
+  (:require
+    [cljs.math :as math]))
 
 (def map-width 40)
 (def map-height 40)
@@ -24,8 +26,8 @@
       [x y]
       (rand-point pred))))
 
-(defn- make-snake [length]
-  (let [dir ([:up :right :down :left] (rand-int 4))
+(defn- make-snake [length dir]
+  (let [dir (or dir ([:up :right :down :left] (rand-int 4)))
         enough-space? (fn [x y]
                         (case dir
                           :up    (< 0 y (- map-height length))
@@ -75,39 +77,45 @@
 
 (defn level [game]
   (let [length (count (get-in game [:snake :nodes]))]
-    (quot (- length initial-length) 5)))
+    (quot (- length initial-length) 10)))
 
 (defn snake-speed [game]
-  (let [level (level game)]
-    (min 60 (+ 4 (* level 4)))))
+  (let [level (+ 4 (level game))
+        seconds (math/pow (- 0.8 (* level 0.007)) level)]
+    (/ 1 (* 60 seconds))))
 
 (defn- emit-event [game event]
   (update game :events conj event))
 
 (defn make []
-  (let [snake (make-snake initial-length)]
+  (let [snake (make-snake initial-length nil)]
     {:snake snake
      :food (rand-food snake)
-     :move-timer 0
+     :move-acc 0
      :input-queue []
      :events []}))
 
+(defn try-move-snake [game]
+  (let [game (if (seq (:input-queue game))
+               (-> (update game :snake set-direction (first (:input-queue game)))
+                   (assoc :input-queue (subvec (:input-queue game) 1)))
+               game)
+        moved (update game :snake move-snake)]
+    (case (collide moved)
+      :food (-> moved
+                (assoc :food (rand-food (:snake moved)))
+                (assoc :snake (grow-snake (:snake moved))))
+      :self (emit-event game :game-over)
+      :wall (emit-event game :game-over)
+      moved)))
+
 (defn tick [game]
-  (if (>= (:move-timer game) (/ 60 (snake-speed game)))
-    (let [game (assoc game :move-timer 0)
-          game (if (seq (:input-queue game))
-                 (-> (update game :snake set-direction (first (:input-queue game)))
-                     (assoc :input-queue (subvec (:input-queue game) 1)))
-                 game)
-          moved (update game :snake move-snake)]
-      (case (collide moved)
-        :food (-> moved
-                  (assoc :food (rand-food (:snake moved)))
-                  (assoc :snake (grow-snake (:snake moved))))
-        :self (emit-event game :game-over)
-        :wall (emit-event game :game-over)
-        moved))
-    (update game :move-timer inc)))
+  (let [acc (+ (:move-acc game) (snake-speed game))]
+    (loop [acc acc game game]
+      (if (>= acc 1)
+        (recur (dec acc)
+               (try-move-snake game))
+        (assoc game :move-acc acc)))))
 
 (defn handle-action [game action]
   (when (and (some #{action} [:up :right :down :left])
