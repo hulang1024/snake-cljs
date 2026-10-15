@@ -7,15 +7,15 @@ body {
   display: flex;
   justify-content: center;
   align-items: center;
-  background-color: #111111;
+  background-color: #161616;
   font-size: 1em;
   font-family: zpix;
 }
 
 
 canvas {
-  background-color: #151515;
-  outline: 4px solid #666666;
+  background-color: #181818;
+  outline: 6px solid #999999;
 }
 
 @font-face {
