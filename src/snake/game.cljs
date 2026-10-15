@@ -91,6 +91,7 @@
   (let [snake (make-snake initial-length nil)]
     {:snake snake
      :food (rand-food snake)
+     :score 0
      :move-acc 0
      :input-queue []
      :events []}))
@@ -103,7 +104,8 @@
         moved (update game :snake move-snake)]
     (case (collide moved)
       :food (-> moved
-                (assoc :food (rand-food (:snake moved)))
+                (assoc :food (rand-food (:snake moved))
+                       :score (inc (:score game)))
                 (assoc :snake (grow-snake (:snake moved))))
       :self (emit-event game :game-over)
       :wall (emit-event game :game-over)

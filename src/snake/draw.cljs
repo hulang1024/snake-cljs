@@ -49,7 +49,9 @@
   (set! (.-fillStyle ctx) "#fafafa")
   (set! (.-textAlign ctx) "left")
   (set! (.-textBaseline ctx) "top")
-  (.fillText ctx (str "LEVEL " (inc (game/level game))) 2 2))
+  (.fillText ctx (str "LEVEL  " (inc (game/level game))) 2 2)
+  (set! (.-textAlign ctx) "center")
+  (.fillText ctx (str "SCORE  " (:score game)) (/ v-width 2) 2))
 
 (defn- draw-center-text [ctx text offset-y]
   (set! (.-font ctx) "6px zpix")
