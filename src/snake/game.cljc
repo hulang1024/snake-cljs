@@ -120,6 +120,11 @@
         (assoc game :move-acc acc)))))
 
 (defn handle-action [game action]
-  (when (and (some #{action} [:up :right :down :left])
-             (< (count (:inputs game)) 3))
-    (update game :input-queue conj action)))
+  (if (and (some #{action} [:up :right :down :left])
+           (< (count (:input-queue game)) 5))
+    (let [last-dir (or (peek (:input-queue game))
+                       (get-in game [:snake :dir]))]
+      (if (not= action last-dir)
+        (update game :input-queue conj action)
+        game))
+    game))

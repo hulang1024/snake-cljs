@@ -1,5 +1,6 @@
 (ns snake.draw 
-  (:require [goog.style :refer [setStyle]]
+  (:require [clojure.string :as s]
+            [goog.style :refer [setStyle]]
             [snake.game :as game]))
 
 (def ^:private app
@@ -51,7 +52,13 @@
   (set! (.-textBaseline ctx) "top")
   (.fillText ctx (str "LEVEL  " (inc (game/level game))) 2 2)
   (set! (.-textAlign ctx) "center")
-  (.fillText ctx (str "SCORE  " (:score game)) (/ v-width 2) 2))
+  (.fillText ctx (str "SCORE  " (:score game)) (/ v-width 2) 2)
+  (set! (.-textAlign ctx) "right")
+  (.fillText ctx
+             (s/join " "
+                     (replace {:left 'L :right 'R :up 'U :down 'D}
+                              (:input-queue game)))
+             (- v-width 2) 2))
 
 (defn- draw-center-text [ctx text offset-y]
   (set! (.-font ctx) "6px zpix")
